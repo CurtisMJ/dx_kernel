@@ -130,8 +130,6 @@ static int dt2w_switch = 0;
 static int pocketmode_switch = 0;
 static int s2wtimer_setup = 0;
 static int h2wtimer_setup = 0;
-static int s2l_eval = 0;
-static int s2wpoll_count = 0;
 static struct hrtimer s2w_timer;
 static struct hrtimer h2w_timer;
 static ktime_t s2w_ktime;
@@ -1317,7 +1315,6 @@ static ssize_t himax_s2la_set(struct device *dev,
 		private_ts->s2l_activated = 1;
 	else
 		private_ts->s2l_activated = 0;
-	s2l_eval = 0;
 	return count;
 }
 
@@ -1666,20 +1663,14 @@ inline void himax_ts_work(struct himax_ts_data *ts)
 
 #ifdef HIMAX_S2W
 				if (himax_s2w_enabled()) {
-					if (s2wpoll_count > 8) {
-						s2wpoll_count = 0;
 						if ((y > ts->pdata->abs_y_max) && !private_ts->s2w_timerdenied) {
 							himax_s2w_func(x);
 						} else {
 							if (himax_s2w_status())
 								himax_s2w_release();
 						}
-							s2l_eval = (((private_ts->s2l_activated == 0) || (y < ts->pdata->abs_y_max)) && !(himax_s2w_enabled() && himax_s2w_status() && (y > ts->pdata->abs_y_max) && (abs(private_ts->s2w_x_pos - x) > 3)));
-					}
-					else
-						s2wpoll_count++;
 				}
-				if (s2l_eval) {
+				if (((private_ts->s2l_activated == 0) || (y < ts->pdata->abs_y_max)) && !(himax_s2w_enabled() && himax_s2w_status() && (y > ts->pdata->abs_y_max) && (abs(private_ts->s2w_x_pos - x) > 3))) {
 #endif
 
 				if (ts->event_htc_enable_type) {

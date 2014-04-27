@@ -128,6 +128,10 @@ static int h2w_switch = 0;
 static int h2w_goahead = 0;
 static int dt2w_switch = 0;
 static int pocketmode_switch = 0;
+static int s2wtimer_setup = 0;
+static int h2wtimer_setup = 0;
+static int s2l_eval = 0;
+static int s2wpoll_count = 0;
 static struct hrtimer s2w_timer;
 static struct hrtimer h2w_timer;
 static ktime_t s2w_ktime;
@@ -1099,16 +1103,32 @@ void himax_s2w_release() {
 void himax_s2w_timerInit() {
 	unsigned long delay_in_ms = 500L;	
 	unsigned long h2w_delay_in_ms = 600L;
+	int ret;
 
 	printk(KERN_INFO "[TS][S2W]%s: Setting up timers\n", __func__);
-  	hrtimer_init( &s2w_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL );
-  	s2w_ktime = ktime_set( 0, MS_TO_NS(delay_in_ms) );
-  	s2w_timer.function = &s2w_hrtimer_callback;
+	if (!s2wtimer_setup && himax_s2w_enabled()) {
+	  	hrtimer_init( &s2w_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL );
+	  	s2w_ktime = ktime_set( 0, MS_TO_NS(delay_in_ms) );
+	  	s2w_timer.function = &s2w_hrtimer_callback;
+		s2wtimer_setup = 1;
+	}
+	else if (!himax_s2w_enabled() && s2wtimer_setup) {
+		ret = hrtimer_cancel( &s2w_timer );
+		if (ret) printk("[TS][S2W]The timer was still in use...\n");
+		s2wtimer_setup = 0;
+	}
 
-	hrtimer_init( &h2w_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL );
-	h2w_ktime = ktime_set( 0, MS_TO_NS(h2w_delay_in_ms) );
-  	h2w_timer.function = &h2w_hrtimer_callback;
-
+	if (!h2wtimer_setup && (h2w_switch || dt2w_switch)) {
+		hrtimer_init( &h2w_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL );
+		h2w_ktime = ktime_set( 0, MS_TO_NS(h2w_delay_in_ms) );
+		h2w_timer.function = &h2w_hrtimer_callback;
+		h2wtimer_setup = 1;
+	}
+	else if (!(h2w_switch || dt2w_switch) && h2wtimer_setup) {
+		ret = hrtimer_cancel( &h2w_timer );
+		if (ret) printk("[TS][H2W]The timer was still in use...\n");
+		h2wtimer_setup = 0;
+	}
 	private_ts->s2w_timerdenied = 0;	
 	private_ts->h2w_timerdenied = 0;
 	private_ts->h2w_denied = 0;
@@ -1269,7 +1289,7 @@ static ssize_t himax_x2wSettings_set(struct device *dev,
 			dt2w_switch = 1;
 		else
 			dt2w_switch = 0;
-
+		himax_s2w_timerInit();
 		himax_s2w_timerStart();	
 	}
 	return count;
@@ -1297,6 +1317,7 @@ static ssize_t himax_s2la_set(struct device *dev,
 		private_ts->s2l_activated = 1;
 	else
 		private_ts->s2l_activated = 0;
+	s2l_eval = 0;
 	return count;
 }
 
@@ -1645,14 +1666,20 @@ inline void himax_ts_work(struct himax_ts_data *ts)
 
 #ifdef HIMAX_S2W
 				if (himax_s2w_enabled()) {
-					if ((y > ts->pdata->abs_y_max) && !private_ts->s2w_timerdenied) {
-						himax_s2w_func(x);
-					} else {
-						if (himax_s2w_status())
-							himax_s2w_release();
+					if (s2wpoll_count > 8) {
+						s2wpoll_count = 0;
+						if ((y > ts->pdata->abs_y_max) && !private_ts->s2w_timerdenied) {
+							himax_s2w_func(x);
+						} else {
+							if (himax_s2w_status())
+								himax_s2w_release();
+						}
+							s2l_eval = (((private_ts->s2l_activated == 0) || (y < ts->pdata->abs_y_max)) && !(himax_s2w_enabled() && himax_s2w_status() && (y > ts->pdata->abs_y_max) && (abs(private_ts->s2w_x_pos - x) > 3)));
 					}
+					else
+						s2wpoll_count++;
 				}
-				if (((private_ts->s2l_activated == 0) || (y < ts->pdata->abs_y_max)) && !(himax_s2w_enabled() && himax_s2w_status() && (y > ts->pdata->abs_y_max) && (abs(private_ts->s2w_x_pos - x) > 3))) {
+				if (s2l_eval) {
 #endif
 
 				if (ts->event_htc_enable_type) {
@@ -2057,11 +2084,14 @@ static int himax8526a_remove(struct i2c_client *client)
 	kfree(ts->diag_mutual);
 	kfree(ts);
 
-  	ret = hrtimer_cancel( &s2w_timer );
-  	if (ret) printk("[TS][S2W]The timer was still in use...\n");
-	ret = hrtimer_cancel( &h2w_timer );
-  	if (ret) printk("[TS][S2W]H2W The timer was still in use...\n");
-
+	if (s2wtimer_setup) {
+		ret = hrtimer_cancel( &s2w_timer );
+		if (ret) printk("[TS][S2W]The timer was still in use...\n");
+	}
+	if (h2wtimer_setup) {
+		ret = hrtimer_cancel( &h2w_timer );
+		if (ret) printk("[TS][S2W]H2W The timer was still in use...\n");
+	}
 	return 0;
 
 }

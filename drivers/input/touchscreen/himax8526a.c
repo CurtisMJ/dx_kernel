@@ -1124,7 +1124,7 @@ void himax_s2w_timerInit() {
 		h2w_timer.function = &h2w_hrtimer_callback;
 		h2wtimer_setup = 1;
 	}
-	else if (!(h2w_switch || dt2w_switch) && h2wtimer_setup) {
+	else if (!h2w_switch  && !dt2w_switch && h2wtimer_setup) {
 		ret = hrtimer_cancel( &h2w_timer );
 		if (ret) printk("[TS][H2W]The timer was still in use...\n");
 		h2wtimer_setup = 0;

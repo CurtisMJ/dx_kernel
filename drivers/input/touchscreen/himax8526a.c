@@ -37,7 +37,7 @@
 
 #define HIMAX_S2W
 
-#define HIMAX_I2C_RETRY_TIMES 10
+#define HIMAX_I2C_RETRY_TIMES 70
 #define ESD_WORKAROUND
 #define FAKE_EVENT
 #define SUPPORT_FINGER_DATA_CHECKSUM 0x0F
@@ -2134,9 +2134,9 @@ static int himax8526a_suspend(struct i2c_client *client, pm_message_t mesg)
 	if (!himax_s2w_enabled()) {
 #endif
 	i2c_himax_write_command(ts->client, 0x82, HIMAX_I2C_RETRY_TIMES);
-	msleep(30);
+	msleep(120);
 	i2c_himax_write_command(ts->client, 0x80, HIMAX_I2C_RETRY_TIMES);
-	msleep(30);
+	msleep(120);
 	i2c_himax_write(ts->client, 0xD7, &data, 1, HIMAX_I2C_RETRY_TIMES);
 #ifdef HIMAX_S2W
 	himax_s2w_timerStart();	
@@ -2201,7 +2201,7 @@ static int himax8526a_resume(struct i2c_client *client)
 #if 0
 	printk(KERN_DEBUG "[TP]%s: diag_command= %d\n", __func__, ts->diag_command);
 #endif
-	hr_msleep(5);
+	hr_msleep(10);
 	if (ts->diag_command == 1 || ts->diag_command == 3 || ts->diag_command == 5) {
 		new_command[1] = command_ec_128_raw_baseline_flag;
 		i2c_himax_master_write(ts->client, new_command, sizeof(new_command), HIMAX_I2C_RETRY_TIMES);

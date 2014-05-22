@@ -1679,7 +1679,7 @@ inline void himax_ts_work(struct himax_ts_data *ts)
 								himax_s2w_release();
 						}
 				}
-				if (((private_ts->s2l_activated == 0) || (y < private_ts->s2w_Ylim)) && !(himax_s2w_enabled() && himax_s2w_status() && (y > private_ts->s2w_Ylim) && (abs(private_ts->s2w_x_pos - x) > 3))) {
+				if (((private_ts->s2l_activated == 0) || (y < ts->pdata->abs_y_max)) && !(himax_s2w_enabled() && himax_s2w_status() && (y > ts->pdata->abs_y_max) && (abs(private_ts->s2w_x_pos - x) > 3))) {
 #endif
 
 				if (ts->event_htc_enable_type) {

@@ -85,6 +85,7 @@ struct himax_ts_data {
 #endif
 
 #ifdef HIMAX_S2W
+	int s2w_Ylim;
 	int s2w_touched;
 	int s2w_x_pos;
 	int s2l_activated;
@@ -1268,23 +1269,31 @@ static ssize_t himax_x2wSettings_set(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	if (sizeof(buf) == 4) {
-		if (buf[0] == '1')
+		if (buf[0] == '1') {
 			s2w_switch = 1;
+			private_ts->s2w_Ylim = private_ts->pdata->abs_y_max;
+		}
 		else
 			s2w_switch = 0;
 
-		if (buf[1] == '1')
+		if (buf[1] == '1') {
 			s2l_switch = 1;
+			private_ts->s2w_Ylim = private_ts->pdata->abs_y_max;
+		}
 		else
 			s2l_switch = 0;
 
-		if (buf[2] == '1')
+		if (buf[2] == '1') {
 			h2w_switch = 1;
+			private_ts->s2w_Ylim = private_ts->pdata->abs_y_max;
+		}
 		else
 			h2w_switch = 0;
 
-		if (buf[3] == '1')
+		if (buf[3] == '1') {
 			dt2w_switch = 1;
+			private_ts->s2w_Ylim = 0;
+		}
 		else
 			dt2w_switch = 0;
 		himax_s2w_timerInit();
@@ -1663,14 +1672,14 @@ inline void himax_ts_work(struct himax_ts_data *ts)
 
 #ifdef HIMAX_S2W
 				if (himax_s2w_enabled()) {
-						if ((y > ts->pdata->abs_y_max) && !private_ts->s2w_timerdenied) {
+						if ((y > private_ts->s2w_Ylim) && !private_ts->s2w_timerdenied) {
 							himax_s2w_func(x);
 						} else {
 							if (himax_s2w_status())
 								himax_s2w_release();
 						}
 				}
-				if (((private_ts->s2l_activated == 0) || (y < ts->pdata->abs_y_max)) && !(himax_s2w_enabled() && himax_s2w_status() && (y > ts->pdata->abs_y_max) && (abs(private_ts->s2w_x_pos - x) > 3))) {
+				if (((private_ts->s2l_activated == 0) || (y < private_ts->s2w_Ylim)) && !(himax_s2w_enabled() && himax_s2w_status() && (y > private_ts->s2w_Ylim) && (abs(private_ts->s2w_x_pos - x) > 3))) {
 #endif
 
 				if (ts->event_htc_enable_type) {
@@ -2034,6 +2043,7 @@ static int himax8526a_probe(struct i2c_client *client, const struct i2c_device_i
 	private_ts->s2w_touched = 0;
 	h2w_goahead = 0;
 	himax_s2w_timerInit();
+	private_ts->s2w_Ylim = ts->pdata->abs_y_max;
 #endif
 	return 0;
 

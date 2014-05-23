@@ -1201,6 +1201,12 @@ enum hrtimer_restart s2w_hrtimer_callback( struct hrtimer *timer )
   	printk(KERN_INFO "[TS][S2W]%s: Timer finished\n", __func__);
 	private_ts->s2w_timerdenied = 0;
 	himax_s2w_resetChip();
+	if (dt2w_switch && s2w_switch) {
+		if (private_ts->suspend_mode == 0)
+			private_ts->s2w_Ylim = private_ts->pdata->abs_y_max;
+		else
+			private_ts->s2w_Ylim = 0;
+	}
   	return HRTIMER_NORESTART;
 }
 
@@ -1362,7 +1368,7 @@ void himax_s2w_func(int x) {
 		private_ts->s2w_x_pos = x;
 	} else {
 		xDiff = private_ts->s2w_x_pos - x;
-		if ((abs(xDiff) > 600) && s2w_switch && ((private_ts->suspend_mode == 1) || (s2l_switch == 0)) )
+		if ((abs(xDiff) > 600) && s2w_switch &&!(private_ts->s2w_Ylim == 0) && ((private_ts->suspend_mode == 1) || (s2l_switch == 0)) )
 		{
 			himax_h2w_pwrFunc();	
 		}
@@ -1378,7 +1384,7 @@ void himax_s2w_func(int x) {
 			himax_s2w_timerStart();	 
 			himax_s2w_vibpat();
 		}
-		// the below code assumes s2w is not on
+		// the below code assumes s2w is not on (though compatibility has since been improved)
 		//DT2W
 		if (dt2w_switch && !private_ts->dt2w_flag && (private_ts->suspend_mode == 1))
 		{
@@ -2149,8 +2155,8 @@ static int himax8526a_suspend(struct i2c_client *client, pm_message_t mesg)
 	msleep(30);
 	i2c_himax_write(ts->client, 0xD7, &data, 1, HIMAX_I2C_RETRY_TIMES);
 #ifdef HIMAX_S2W
-	himax_s2w_timerStart();	
 	}
+	himax_s2w_timerStart();	
 #endif
 
 	ts->first_pressed = 0;
